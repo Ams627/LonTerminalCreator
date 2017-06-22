@@ -22,81 +22,45 @@ namespace LonTerminalCreator
                 var document = XDocument.Load(args[0]);
                 var ns = document.Root.GetDefaultNamespace();
 
-
                 var d = document.Descendants(ns + "Stations").First().Elements(ns + "Station")
                     .GroupBy(x => x.Attribute("Crs")?.Value,
                              x => x.Elements("FareGroupLocation").Where(y => y.Attribute("Nlc")?.Value == "1072")  // take only london dests
                                     .SelectMany(z => z.Elements("FareRoute")).
-                                        GroupBy(a => a.Attribute("Code"),       // group by route code 
+                                        GroupBy(a => a.Attribute("Code").Value,       // group by route code 
                                                 i => new
                                                 {
                                                     StartDate = i.Element("PermittedStations")?.Attribute("StartDate")?.Value,
                                                     EndDate = i.Element("PermittedStations")?.Attribute("EndDate")?.Value,
                                                     StationList = i.Element("PermittedStations").Elements("Station").Select(j => j.Value).ToList()
-                                                }));
+                                                })).OrderBy(x=>x.Key);
 
                 var crsDups = d.Where(x => x.Count() > 1);
 
-
                 XNamespace xsi = XNamespace.Get("http://www.w3.org/2001/XMLSchema-instance");
                 XNamespace xsd = XNamespace.Get("http://www.w3.org/2001/XMLSchema");
-                XNamespace outputns = XNamespace.Get("http://schema.test.com/test");
+                XNamespace outputns = XNamespace.Get("http://www.w3.org/2001/XMLSchema-instance");
                 var outputDoc = new XDocument(
-                        new XDeclaration("1.0", "utf-8", "yes"),
+                        new XDeclaration("1.0", "utf-8", "no"),
                         new XElement(outputns + "LondonTerminalMappingData",
                                             new XAttribute("xmlns", outputns.NamespaceName),
                                             new XAttribute(XNamespace.Xmlns + "xsd", xsd.NamespaceName),
                                             new XAttribute(XNamespace.Xmlns + "xsi", xsi.NamespaceName),
-                        new XElement(ns + "Stations",
-                            from station in d select new XElement(ns + "Station",
-                                new XElement(ns + "CrsCode", new XText(station.Key),
-                                    new XElement(ns + "LondonTerminalsMappings",
+                                            new XAttribute("version", "1.3"),
+                        new XElement(outputns + "Stations",
+                            from station in d select new XElement(outputns + "Station",
+                                new XElement(outputns + "CrsCode", new XText(station.Key)),
+                                    new XElement(outputns + "LondonTerminalsMappings",
                                         from route in station.First()
-                                            select new XElement(ns + "LondonTerminalMapping",
-                                                new XElement(ns + "LondonTerminals", 
-                                                    from dest in route.Key
-                                                    select new XElement(ns + "Terminal", new XText(dest.st                                                    
-                                                    
-                                                    
-                                                    )))));
+                                        from permittedStations in route
+                                        select new XElement(outputns + "LondonTerminalMapping",
+                                            new XElement(outputns + "LondonTerminals",
+                                                from dest in permittedStations.StationList
+                                                select new XElement(outputns + "Terminal", new XText(dest))),
+                                                    new XElement(outputns + "StartDate", new XText(permittedStations.StartDate)),
+                                                    new XElement(outputns + "EndDate", new XText(permittedStations.EndDate)),
+                                                    new XElement(outputns + "FareRoute", new XText(route.Key))))))));
+
                 outputDoc.Save("q:\\temp\\save1.xml");
-                foreach (var station in d)
-                {
-                    Console.WriteLine($"CRS {station.Key}");
-                    foreach(var stationElement in station) // should be only one station in each GroupBy grouping as we group by CRS
-                    {
-                        foreach (var route in stationElement)
-                        {
-                            Console.WriteLine($"{route.Key}");
-                            foreach (var permittedStationList in route)
-                            {
-                                Console.WriteLine($"start date is {permittedStationList.StartDate}");
-                                Console.WriteLine($"end date is {permittedStationList.EndDate}");
-                                foreach (var destination in permittedStationList.StationList)
-                                {
-                                    Console.WriteLine($"{destination}");
-                                }
-                            }
-                        }
-                    }
-                }
-
-
-
-                //foreach (var station in doubleDict)
-                //{
-                //    Console.WriteLine($"{station.Key}");
-                //    foreach (var routedic in station.Value)
-                //    {
-                //        Console.WriteLine($"    Route: {routedic.Key}");
-                //        Console.WriteLine($"    StartDate: {routedic.Value.startDate}");
-                //        Console.WriteLine($"    EndDate: {routedic.Value.endDate}");
-                //        foreach (var destination in routedic.Value.stationList)
-                //        {
-                //            Console.WriteLine($"        {destination}");
-                //        }
-                //    }
-                //}
             }
             catch (Exception ex)
             {
