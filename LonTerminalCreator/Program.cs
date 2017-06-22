@@ -21,6 +21,11 @@ namespace LonTerminalCreator
 
                 var document = XDocument.Load(args[0]);
                 var ns = document.Root.GetDefaultNamespace();
+
+                //var countDic = (from origin in document.Descendants(ns + "Station")
+                //                let originCrs = origin.Attribute("Crs")?.Value;
+
+
                 var doubleDict = (from origin in document.Descendants(ns + "Station")
                            let originCrs = origin.Attribute("Crs")?.Value
                            let londonList = origin.Elements(ns + "FareGroupLocation")
